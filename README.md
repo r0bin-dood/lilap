@@ -1,0 +1,2 @@
+lilap (pronounced like you would lilac), it's a lightweight access point (AP) management tool for GNU/Linux.
+It's severly limited in capabilities, especially compared to the hostap family of tools. Its primary objective is the management and presentation of a captive portal.
