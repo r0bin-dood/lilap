@@ -1,0 +1,1 @@
+This document explains how logging works in lilap

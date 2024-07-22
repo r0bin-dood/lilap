@@ -1,0 +1,1 @@
+This documents details explains the syntax of lilap.conf

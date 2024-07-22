@@ -1,8 +1,8 @@
-.PHONY
+include config.mk
 
-source_files := $(wildcard src/*.c)
+$(BUILD_DIR)/$(TARGET_EXEC): $(SOURCE_FILES)
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
 
-build: $(source_files)
-	cc
 clean:
-	rm -rf bulid
+	rm -rf $(BUILD_DIR)
