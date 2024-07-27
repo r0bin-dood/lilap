@@ -9,4 +9,6 @@ typedef int bool;
 
 #define IGNORE_RET(x) ((void)(x))
 
+typedef void (*lcu_cleanup_callback)(void *);
+
 #endif // LCU_H
