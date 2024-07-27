@@ -11,4 +11,4 @@ lilap only takes 1 argument. Any other arguments will be ignored.
 
 `$ lilap <config_file>`
 
-See docs/config_file.md
+See [docs/config_file.md](docs/config_file.md)

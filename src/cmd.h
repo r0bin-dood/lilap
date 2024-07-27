@@ -1,6 +1,6 @@
-#ifndef LILAP_CMD_H
-#define LILAP_CMD_H
+#ifndef CMD_H
+#define CMD_H
 
 int cmd_parse(int argc, char **argv);
 
-#endif // LILAP_CMD_H
+#endif // CMD_H

@@ -1,0 +1,1 @@
+lil' C utils (lcu) is a library with implementations of things I find useful and can carry around from project to project.

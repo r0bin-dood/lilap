@@ -1,5 +1,5 @@
 #include "cmd.h"
-#include "utils.h"
+#include "lcu.h"
 
 int cmd_parse(int argc, char **argv)
 {
