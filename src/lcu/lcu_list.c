@@ -253,7 +253,7 @@ void lcu_list_destroy(lcu_list_t *handle)
     list_t **list = (list_t **)handle;
 
     for (size_t i = 0; i < (*list)->size; i++)
-        IGNORE_RET(lcu_list_remove_back(*handle));
+        lcu_list_remove_back(*handle);
 
     free(*handle);
     *handle = NULL;

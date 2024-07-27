@@ -38,21 +38,18 @@ lcu_tpool_t lcu_tpool_create(size_t num_threads)
     
     tpool->worker_fifo = lcu_fifo_create(NULL);
     if (tpool->worker_fifo == NULL)
-    {
-        free(tpool);
-        return NULL;
-    }
+        goto error_1;
 
     tpool->num_threads = num_threads;
     tpool->worker_id_arr = (pthread_t *) malloc(sizeof(pthread_t) * num_threads);
     if (tpool->worker_id_arr == NULL)
-        goto error;
+        goto error_2;
 
     for (size_t i = 0; i < num_threads; i++)
     {
         worker_t *worker = (worker_t *) malloc(sizeof(worker_t));
         if (worker == NULL)
-            goto error;
+            goto error_3;
         worker->work_func = NULL;
         worker->work_func_args = NULL;
 
@@ -61,25 +58,39 @@ lcu_tpool_t lcu_tpool_create(size_t num_threads)
         
         worker_data_t *data = (worker_data_t *) malloc(sizeof(worker_data_t));
         if (data == NULL)
-            goto error;
+        {
+            pthread_cond_destroy(&worker->work_cond);
+            pthread_mutex_destroy(&worker->work_cond_mutex);
+            free(worker);
+            goto error_3;
+        }
         data->tpool = tpool;
         data->worker = worker;
 
         int ret = pthread_create(&worker->worker_id, NULL, &lcu_helper_worker_func, (void *)data);
         if (ret != 0)
-            goto error;
+        {
+            pthread_cond_destroy(&worker->work_cond);
+            pthread_mutex_destroy(&worker->work_cond_mutex);
+            free(worker);
+            free(data);
+            goto error_3;
+        }
         tpool->worker_id_arr[i] = worker->worker_id;
 
-        ret = lcu_fifo_push(tpool->worker_fifo, (void *)worker);
-        if (ret != 0)
-            goto error;
+        lcu_fifo_push(tpool->worker_fifo, (void *)worker);
     }
 
     return tpool;
-
-    error:
+    
+    error_3:
+    free(tpool->worker_id_arr);
+    error_2:
     lcu_fifo_destroy(&tpool->worker_fifo);
+    error_1:
+    pthread_mutex_destroy(&tpool->worker_fifo_mutex);
     free(tpool);
+
     return NULL;
 }
 
@@ -108,16 +119,16 @@ int lcu_tpool_add_work(lcu_tpool_t handle, lcu_tpool_worker_func_t func, void *a
     if (lcu_tpool_get_available_size(tpool) == 0)
         return -1;
 
-    IGNORE_RET(pthread_mutex_lock(&tpool->worker_fifo_mutex));
+    pthread_mutex_lock(&tpool->worker_fifo_mutex);
     worker_t *worker = (worker_t *) lcu_fifo_peek(tpool->worker_fifo);
     worker->work_func = func;
     worker->work_func_args = args;
     lcu_fifo_pop(tpool->worker_fifo);
-    IGNORE_RET(pthread_mutex_unlock(&tpool->worker_fifo_mutex));
+    pthread_mutex_unlock(&tpool->worker_fifo_mutex);
     
-    IGNORE_RET(pthread_mutex_lock(&worker->work_cond_mutex));
+    pthread_mutex_lock(&worker->work_cond_mutex);
     pthread_cond_signal(&worker->work_cond);
-    IGNORE_RET(pthread_mutex_unlock(&worker->work_cond_mutex));
+    pthread_mutex_unlock(&worker->work_cond_mutex);
 
     return 0;
 }
@@ -132,9 +143,9 @@ void lcu_tpool_destroy(lcu_tpool_t *handle)
         pthread_join((*tpool)->worker_id_arr[i], NULL);
     }
 
-    IGNORE_RET(pthread_mutex_lock(&(*tpool)->worker_fifo_mutex));
+    pthread_mutex_lock(&(*tpool)->worker_fifo_mutex);
     lcu_fifo_destroy(&(*tpool)->worker_fifo);
-    IGNORE_RET(pthread_mutex_unlock(&(*tpool)->worker_fifo_mutex));
+    pthread_mutex_unlock(&(*tpool)->worker_fifo_mutex);
 
     pthread_mutex_destroy(&(*tpool)->worker_fifo_mutex);
     
@@ -165,17 +176,17 @@ void *lcu_helper_worker_func(void *arg)
 
     while (true)
     {
-        IGNORE_RET(pthread_mutex_lock(&worker->work_cond_mutex));
-        IGNORE_RET(pthread_cond_wait(&worker->work_cond, &worker->work_cond_mutex));
-        IGNORE_RET(pthread_mutex_unlock(&worker->work_cond_mutex));
+        pthread_mutex_lock(&worker->work_cond_mutex);
+        pthread_cond_wait(&worker->work_cond, &worker->work_cond_mutex);
+        pthread_mutex_unlock(&worker->work_cond_mutex);
 
         (*worker->work_func)(worker->work_func_args);
         worker->work_func = NULL;
         worker->work_func_args = NULL;
 
-        IGNORE_RET(pthread_mutex_lock(&tpool->worker_fifo_mutex));
+        pthread_mutex_lock(&tpool->worker_fifo_mutex);
         lcu_fifo_push(tpool->worker_fifo, (void *)worker);
-        IGNORE_RET(pthread_mutex_unlock(&tpool->worker_fifo_mutex));
+        pthread_mutex_unlock(&tpool->worker_fifo_mutex);
     }
 
     pthread_cleanup_pop(true);
