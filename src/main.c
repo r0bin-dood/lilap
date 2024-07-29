@@ -30,8 +30,11 @@ static void wait_for_exit();
 
 int main(int argc, char **argv)
 {
-    if (argc > 2)
+    if (argc != 2)
+    {
+        printf("Usage: lilap <conf_file>\n");
         exit(EXIT_FAILURE);
+    }
 
     lcu_logger_create(LCU_STDOUT);
 
