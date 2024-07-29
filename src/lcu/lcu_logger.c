@@ -1,9 +1,11 @@
 #include <pthread.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 #include "lcu.h"
 #include "lcu_fifo.h"
 #include "lcu_logger.h"
@@ -21,7 +23,7 @@ static pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 static void *lcu_helper_logger_func(void *arg);
 static void lcu_helper_str_cleanup(void *buf);
 
-void lcu_logger_create(const char* out)
+void lcu_logger_create(const char *out)
 {
     str_fifo = lcu_fifo_create(&lcu_helper_str_cleanup);
     if (str_fifo == NULL)
@@ -100,6 +102,9 @@ void lcu_logger_print(const char *fmt, ...)
 
 void lcu_logger_destroy()
 {
+    while (lcu_fifo_get_size(str_fifo) != 0)
+        usleep(50000);
+
     pthread_cancel(tid);
     pthread_join(tid, NULL);
 

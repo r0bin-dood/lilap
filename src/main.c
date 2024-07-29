@@ -12,40 +12,36 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <inttypes.h>
-
-#include "lcu_log.h"
-#include "cmd.h"
+#include <pthread.h>
+#include <time.h>
 #include "lcu.h"
+#include "lcu_logger.h"
 #include "lcu_tpool.h"
+#include "conf.h"
 
-void install_handlers();
-void exit_handler(int, siginfo_t *, void *);
+static conf_t conf;
+static bool got_exit;
+static pthread_cond_t exit_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void worker(void *arg)
-{
-    int *x = (int *)arg;
-    printf("I'm worker %d\n", x);
-    sleep(5);
-}
+static void install_handlers();
+static void exit_handler(int, siginfo_t *, void *);
+static void wait_for_exit();
 
 int main(int argc, char **argv)
 {
-    IGNORE_RET(cmd_parse(argc, argv));
+    if (argc > 2)
+        exit(EXIT_FAILURE);
+
+    lcu_logger_create(LCU_STDOUT);
 
     install_handlers();
+    
+    conf_parse(&conf, argv[1]);
 
-    lcu_tpool_t tpool = lcu_tpool_create(8);
-    printf("tpool size: %lu\nworkers available: %lu\n", lcu_tpool_get_total_size(tpool), lcu_tpool_get_available_size(tpool));
+    wait_for_exit();
 
-    int x = 1;
-    lcu_tpool_add_work(tpool, &worker, (void *)&x);
-    printf("tpool size: %lu\nworkers available: %lu\n", lcu_tpool_get_total_size(tpool), lcu_tpool_get_available_size(tpool));
-    int y = 2;
-    lcu_tpool_add_work(tpool, &worker, (void *)&y);
-    printf("tpool size: %lu\nworkers available: %lu\n", lcu_tpool_get_total_size(tpool), lcu_tpool_get_available_size(tpool));
-    sleep(15);
-    printf("tpool size: %lu\nworkers available: %lu\n", lcu_tpool_get_total_size(tpool), lcu_tpool_get_available_size(tpool));
-    lcu_tpool_destroy(&tpool);
+    lcu_logger_destroy();
 
     return EXIT_SUCCESS;
 }
@@ -58,17 +54,17 @@ void install_handlers()
     act.sa_sigaction = &exit_handler;
     if (sigaction(SIGTERM, &act, NULL) == -1)
     {
-        printf("%d: %s", errno, strerror(errno));
+        lcu_logger_print("%d: %s", errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
     if (sigaction(SIGINT, &act, NULL) == -1)
     {
-        printf("%d: %s", errno, strerror(errno));
+        lcu_logger_print("%d: %s", errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
     if (sigaction(SIGABRT, &act, NULL) == -1)
     {
-        printf("%d: %s", errno, strerror(errno));
+        lcu_logger_print("%d: %s", errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
 }
@@ -78,4 +74,17 @@ void exit_handler(int sig, siginfo_t *sig_info, void *context)
     UNUSED(sig);
     UNUSED(sig_info);
     UNUSED(context);
+
+    pthread_mutex_lock(&exit_mutex);
+    got_exit = true;
+    pthread_cond_signal(&exit_cond);
+    pthread_mutex_unlock(&exit_mutex);
+}
+
+void wait_for_exit()
+{
+    pthread_mutex_lock(&exit_mutex);
+    while (got_exit == false)
+        pthread_cond_wait(&exit_cond, &exit_mutex);
+    pthread_mutex_unlock(&exit_mutex);
 }
