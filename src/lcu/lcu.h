@@ -5,6 +5,8 @@ typedef int bool;
 #define false (0)
 #define true  (!false)
 
+#define stringify(x) #x
+
 #define UNUSED(x) ((void)(x))
 
 typedef void (*lcu_cleanup_callback)(void *);
