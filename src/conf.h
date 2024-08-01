@@ -1,13 +1,7 @@
 #ifndef CONF_H
 #define CONF_G
 
-#include <stddef.h>
-
-typedef struct conf {
-    char *log_dir;
-    char *ap_name;
-    size_t tpool_threads;
-} conf_t;
+#include "conf_def.h"
 
 void conf_parse(conf_t *conf, const char *file);
 

@@ -19,12 +19,6 @@
 #include "lcu_tpool.h"
 #include "conf.h"
 
-static conf_t conf = {
-    .log_dir = "stdout",
-    .ap_name = "lilap AP",
-    .tpool_threads = 8
-};
-
 static bool got_exit;
 static pthread_cond_t exit_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -41,12 +35,14 @@ int main(int argc, const char **argv)
         exit(EXIT_FAILURE);
     }
 
-    conf_parse(&conf, argv[1]);
+    conf_t *conf = get_conf();
+
+    conf_parse(conf, argv[1]);
         
-    lcu_logger_create(conf.log_dir);
+    lcu_logger_create(conf->log_dir);
 
     lcu_logger_print("hello world\n");
-    lcu_logger_print("\"%s\" %lu\n", conf.ap_name, conf.tpool_threads);
+    lcu_logger_print("\"%s\" %lu\n", conf->ap_name, conf->tpool_threads);
 
     install_handlers();
     
