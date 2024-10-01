@@ -4,7 +4,7 @@ It's severly limited in capabilities, especially compared to the hostap family o
 lilap is a minimal-dependencies project, which means there's a lot of wheel re-inventing. It's a one stop solution and does not involve other projects like NGINX, create_ap, hostapd, ifconfig, etc.
 
 ## Build
-Run `cargo build` and `cargo run` to build and clean up lilap respectively
+Run `cargo build` and `cargo run <config file>` to build and run lilap respectively
 
 ## Usage
 lilap only takes 1 argument. Any other arguments will be ignored.
