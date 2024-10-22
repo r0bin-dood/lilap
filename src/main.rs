@@ -1,23 +1,52 @@
+mod conf_defaults;
+mod server;
+mod web;
 
-mod conf;
-
+use confee::conf::*;
+use server::*;
+use signal_hook::{
+    consts::signal::{SIGABRT, SIGINT, SIGTERM},
+    iterator::Signals,
+};
 use std::env;
-use crate::conf::*;
+use web::Web;
 
 fn main() {
+    let mut conf = Conf::from(conf_defaults!());
+
     let args: Vec<String> = env::args().collect();
-    // Program only accepts a configuration file as an argument
-    if args.len() != 2 {
-        std::process::exit(exitcode::DATAERR);
+    match args.len() {
+        2 => {
+            let conf_file_name = &args[1];
+            match conf.with_file(conf_file_name).update() {
+                Ok(_) => println!(
+                    "Successfully updated configuration with {}!",
+                    conf_file_name
+                ),
+                Err(e) => panic!("Error updating configuration: {}", e),
+            }
+        }
+        1 => {
+            println!("Running with defaults:\n{}", conf);
+        }
+        _ => {
+            println!("Invalid usage");
+            println!("lilap <conf>");
+            std::process::exit(exitcode::DATAERR);
+        }
     }
 
-    let mut conf = Conf::new();
-    Conf::parse(&mut conf, &args[1]);
+    // Set up web server
+    let web_server = ServerFactory::create::<Web>(&conf);
 
-    if let Value::String(s) = conf.get("log_dir").unwrap() {
-        println!("{}", s);
-    }
+    println!("BEFORE SIGNAL");
 
-    dbg!(conf);
+    let mut signals =
+        Signals::new(&[SIGINT, SIGABRT, SIGTERM]).expect("Error setting up signal handler");
+    signals.wait();
 
+    let mut web_server = web_server.lock().unwrap();
+    web_server.destroy();
+
+    println!("AFTER SIGNAL");
 }
