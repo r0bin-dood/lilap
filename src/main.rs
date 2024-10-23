@@ -1,6 +1,5 @@
 mod conf_defaults;
 mod server;
-mod web;
 
 use confee::conf::*;
 use server::*;
@@ -9,7 +8,7 @@ use signal_hook::{
     iterator::Signals,
 };
 use std::env;
-use web::Web;
+use server::web::Web;
 
 fn main() {
     let mut conf = Conf::from(conf_defaults!());
@@ -39,14 +38,10 @@ fn main() {
     // Set up web server
     let web_server = ServerFactory::create::<Web>(&conf);
 
-    println!("BEFORE SIGNAL");
-
     let mut signals =
         Signals::new(&[SIGINT, SIGABRT, SIGTERM]).expect("Error setting up signal handler");
     signals.wait();
 
-    let mut web_server = web_server.lock().unwrap();
-    web_server.destroy();
+    try_lock_or_panic!(web_server, web_server => web_server.destroy());
 
-    println!("AFTER SIGNAL");
 }
