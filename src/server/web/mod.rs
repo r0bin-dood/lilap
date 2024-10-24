@@ -1,10 +1,7 @@
-use crate::{lock, server::*, server_state};
+use crate::{lock, receiver, server::*, server_state};
 use confee::conf::*;
 use std::sync::mpsc;
-use std::{
-    net::IpAddr,
-    thread::{self, JoinHandle},
-};
+use std::net::IpAddr;
 
 pub struct Web {
     dir: String,
@@ -27,7 +24,7 @@ impl Server for Web {
     fn mainloop(&self) {
         println!("Web Server started!");
 
-        lock!(self.state.exit.1, rx => {
+        lock!(receiver!(self), rx => {
             let _ = rx.recv();
         });
 

@@ -42,6 +42,7 @@ fn main() {
         Signals::new(&[SIGINT, SIGABRT, SIGTERM]).expect("Error setting up signal handler");
     signals.wait();
 
-    try_lock_or_panic!(web_server, web_server => web_server.destroy());
+    web_server.destroy();
 
+    ServerFactory::join();
 }

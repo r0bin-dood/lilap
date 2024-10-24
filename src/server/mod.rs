@@ -1,14 +1,30 @@
 pub mod web;
 pub mod common;
 use confee::conf::*;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use once_cell::sync::Lazy;
+
+static JOIN_HANDLES: Lazy<Mutex<Vec<JoinHandle<()>>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+#[macro_export]
+macro_rules! sender {
+    ($self:ident) => {
+        $self.get_state().txrx.0
+    };
+}
+#[macro_export]
+macro_rules! receiver {
+    ($self:ident) => {
+        $self.get_state().txrx.1
+    };
+}
 
 #[macro_export]
 macro_rules! try_lock_or_panic {
     ($lock:expr, $var:ident => $($body:tt)*) => {{
-        let mut $var = $lock.try_lock().expect("Failed to acquire lock immediately");
+        let $var = $lock.try_lock().expect("Failed to acquire lock immediately");
         $($body)*
     }};
 }
@@ -16,7 +32,7 @@ macro_rules! try_lock_or_panic {
 #[macro_export]
 macro_rules! lock {
     ($lock:expr, $var:ident => $($body:tt)*) => {{
-        let mut $var = $lock.lock().unwrap();  // This will panic if the lock can't be acquired
+        let $var = $lock.lock().unwrap();
         $($body)*
     }};
 }
@@ -25,8 +41,7 @@ macro_rules! lock {
 macro_rules! server_state {
     () => {
         ServerState {
-            join_handle: None,
-            exit: {
+            txrx: {
                 let (tx, rx) = mpsc::channel();
                 let rx = Arc::new(Mutex::new(rx));
                 (tx, rx)
@@ -36,9 +51,7 @@ macro_rules! server_state {
 }
 
 pub struct ServerState {
-    pub join_handle: Option<JoinHandle<()>>,
-    pub exit: (Sender<bool>, Arc<Mutex<Receiver<bool>>>),
-
+    pub txrx: (Sender<bool>, Arc<Mutex<Receiver<bool>>>),
 }
 
 pub trait HasServerState {
@@ -65,36 +78,32 @@ where
 
 pub trait Server: Send + Sync + HasServerState + 'static {
     fn create(conf: &Conf) -> Self;
-    fn set_join_handle(&mut self, handle: JoinHandle<()>) {
-        self.get_state_mut().join_handle = Some(handle);
-    }
     fn mainloop(&self);
-    fn destroy(&mut self) {
-        let _ = self.get_state().exit.0.send(true);
-
-        if let Some(handle) = self.get_state_mut().join_handle.take() {
-            match handle.join() {
-                Ok(_) => println!("Thread finished successfully"),
-                Err(e) => println!("Thread panicked: {:?}", e),
-            }
-        } else {
-            println!("No thread handle present");
-        }
+    fn destroy(&self) {
+        let _ = sender!(self).send(true);
     }
 }
 
 pub struct ServerFactory;
 
 impl ServerFactory {
-    pub fn create<T: Server>(conf: &Conf) -> Arc<Mutex<T>> {
-        let server_instance = Arc::new(Mutex::new(T::create(conf)));
+    pub fn create<T: Server>(conf: &Conf) -> Arc<T> {
+        let server_instance = Arc::new(T::create(conf));
         let server_clone = Arc::clone(&server_instance);
 
         let handle = thread::spawn(move || {
-            lock!(server_clone, server => server.mainloop());
+            server_clone.mainloop();
         });
-        lock!(server_instance, server => server.set_join_handle(handle));
+        JOIN_HANDLES.lock().unwrap().push(handle);
 
         server_instance
+    }
+
+    pub fn join() {
+        let mut handles = JOIN_HANDLES.lock().unwrap();
+
+        for handle in handles.drain(..) {
+            handle.join().expect("Thread panicked!");
+        }
     }
 }
