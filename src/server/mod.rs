@@ -1,5 +1,7 @@
-pub mod web;
 pub mod common;
+pub mod web;
+pub mod dns;
+pub mod dhcp;
 use confee::conf::*;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -24,7 +26,7 @@ macro_rules! receiver {
 #[macro_export]
 macro_rules! try_lock_or_panic {
     ($lock:expr, $var:ident => $($body:tt)*) => {{
-        let $var = $lock.try_lock().expect("Failed to acquire lock immediately");
+        let mut $var = $lock.try_lock().expect("Failed to acquire lock immediately");
         $($body)*
     }};
 }
@@ -32,7 +34,7 @@ macro_rules! try_lock_or_panic {
 #[macro_export]
 macro_rules! lock {
     ($lock:expr, $var:ident => $($body:tt)*) => {{
-        let $var = $lock.lock().unwrap();
+        let mut $var = $lock.lock().unwrap();
         $($body)*
     }};
 }
@@ -41,6 +43,7 @@ macro_rules! lock {
 macro_rules! server_state {
     () => {
         ServerState {
+            prefix: String::from(""),
             txrx: {
                 let (tx, rx) = mpsc::channel();
                 let rx = Arc::new(Mutex::new(rx));
@@ -51,6 +54,7 @@ macro_rules! server_state {
 }
 
 pub struct ServerState {
+    pub prefix: String,
     pub txrx: (Sender<bool>, Arc<Mutex<Receiver<bool>>>),
 }
 
@@ -79,6 +83,21 @@ where
 pub trait Server: Send + Sync + HasServerState + 'static {
     fn create(conf: &Conf) -> Self;
     fn mainloop(&self);
+    fn log(&self, fmt: &str) {
+        let formatted_message = format!("{}: {}", self.get_state().prefix, fmt);
+        let indented_message = if formatted_message.contains('\n') {
+            let lines: Vec<&str> = formatted_message.lines().collect();
+            let mut result = lines[0].to_string();
+            for line in &lines[1..] {
+                result.push_str(&format!("\n\t{}", line));
+            }
+            result
+        } else {
+            // If there's no newline, just format the message normally
+            formatted_message // Keep the single line as it is
+        };
+        println!("{}", indented_message);
+    }
     fn destroy(&self) {
         let _ = sender!(self).send(true);
     }

@@ -1,0 +1,8 @@
+Running with defaults:
+log_file: stdout
+web_dir: /var/www/html/
+web_port: 8080
+web_addr: 127.0.0.1
+
+web: Server started!
+web: Server done!

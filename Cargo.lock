@@ -21,12 +21,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bb16eae07c46a333e8c4385ce4178e8e37ef3ed5fd4945867d68a80af4e37f1"
 
 [[package]]
-name = "exitcode"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de853764b47027c2e862a995c34978ffa63c1501f2e15f987ba11bd4f9bba193"
-
-[[package]]
 name = "getrandom"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -47,8 +41,8 @@ checksum = "d8adc4bb1803a324070e64a98ae98f38934d91957a99cfb3a43dcbc01bc56439"
 name = "lilap"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "confee",
- "exitcode",
  "once_cell",
  "rand",
  "signal-hook",

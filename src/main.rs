@@ -9,6 +9,8 @@ use signal_hook::{
 };
 use std::env;
 use server::web::Web;
+use server::dns::Dns;
+use server::dhcp::Dhcp;
 
 fn main() {
     let mut conf = Conf::from(conf_defaults!());
@@ -31,18 +33,21 @@ fn main() {
         _ => {
             println!("Invalid usage");
             println!("lilap <conf>");
-            std::process::exit(exitcode::DATAERR);
         }
     }
-
+    
     // Set up web server
     let web_server = ServerFactory::create::<Web>(&conf);
+    let dns_server = ServerFactory::create::<Dns>(&conf);
+    let dhcp_server = ServerFactory::create::<Dhcp>(&conf);
 
     let mut signals =
         Signals::new(&[SIGINT, SIGABRT, SIGTERM]).expect("Error setting up signal handler");
     signals.wait();
 
     web_server.destroy();
+    dns_server.destroy();
+    dhcp_server.destroy();
 
     ServerFactory::join();
 }
