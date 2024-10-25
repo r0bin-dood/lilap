@@ -6,7 +6,6 @@ use std::time::Duration;
 use std::sync::mpsc;
 
 pub struct Dns {
-    web_addr: IpAddr,
     addr: IpAddr,
     port: u16,
     pub state: ServerState,
@@ -15,8 +14,7 @@ pub struct Dns {
 impl Server for Dns {
     fn create(conf: &Conf) -> Self {
         let mut dns = Dns {
-            web_addr: conf.get("web_addr").unwrap(),
-            addr: conf.get("dns_addr").unwrap(),
+            addr: conf.get("link_addr").unwrap(),
             port: conf.get("dns_port").unwrap(),
             state: server_state!(),
         };
@@ -25,8 +23,6 @@ impl Server for Dns {
     }
 
     fn mainloop(&self) {
-        self.log("Ready");
-
         let socket_addr = SocketAddr::new(self.addr, self.port);
         let socket = UdpSocket::bind(socket_addr).expect(&format!("{}: Could not bind to address", self.state.prefix));
         socket.set_nonblocking(true).expect(&format!("{}: Failed to set non-blocking", self.state.prefix));
@@ -106,7 +102,7 @@ impl Dns {
         response.extend_from_slice(&[0x00, 0x04]);
     
         // Include the IPv4 address
-        if let IpAddr::V4(ipv4_addr) = self.web_addr {
+        if let IpAddr::V4(ipv4_addr) = self.addr {
             response.extend_from_slice(&ipv4_addr.octets()); // Append the IP address
         }
     

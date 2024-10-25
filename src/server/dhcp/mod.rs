@@ -9,14 +9,16 @@ use std::sync::mpsc;
 pub struct Dhcp {
     addr: IpAddr,
     port: u16,
+    dst_port: u16,
     pub state: ServerState,
 }
 
 impl Server for Dhcp {
     fn create(conf: &Conf) -> Self {
         let mut dhcp = Dhcp {
-            addr: conf.get("dhcp_addr").unwrap(),
-            port: conf.get("dhcp_port").unwrap(),
+            addr: conf.get("link_addr").unwrap(),
+            port: conf.get("dhcp_src_port").unwrap(),
+            dst_port: conf.get("dhcp_dst_port").unwrap(),
             state: server_state!(),
         };
         dhcp.state.prefix = String::from("dhcp");
@@ -24,8 +26,6 @@ impl Server for Dhcp {
     }
 
     fn mainloop(&self) {
-        self.log("Ready");
-
         let socket_addr = SocketAddr::new(self.addr, self.port);
         let socket = UdpSocket::bind(socket_addr).expect(&format!("{}: Could not bind to address", self.state.prefix));
         socket.set_nonblocking(true).expect(&format!("{}: Failed to set non-blocking", self.state.prefix));
@@ -45,7 +45,7 @@ impl Server for Dhcp {
                     self.log(&format!("Received {} bytes of data:\n{}", n, self.format_bytes_as_hex(&buffer, *n)));
                     if let Some((xid, client_mac)) = self.parse_dhcp_request(&buffer[..*n]) {
                         let response = self.create_dhcp_offer(xid, &client_mac);
-                        let response_addr = (addr.ip(), 68);
+                        let response_addr = (addr.ip(), self.dst_port);
                         match socket.send_to(&response[..], response_addr) {
                             Ok(sent_bytes) => {
                                 self.log(&format!("Sent {} bytes to {}:\n{}", sent_bytes, addr, self.format_bytes_as_hex(&response[..], sent_bytes)));

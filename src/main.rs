@@ -11,6 +11,7 @@ use std::env;
 use server::web::Web;
 use server::dns::Dns;
 use server::dhcp::Dhcp;
+use server::link::Link;
 
 fn main() {
     let mut conf = Conf::from(conf_defaults!());
@@ -40,6 +41,7 @@ fn main() {
     let web_server = ServerFactory::create::<Web>(&conf);
     let dns_server = ServerFactory::create::<Dns>(&conf);
     let dhcp_server = ServerFactory::create::<Dhcp>(&conf);
+    let link_server = ServerFactory::create::<Link>(&conf);
 
     let mut signals =
         Signals::new(&[SIGINT, SIGABRT, SIGTERM]).expect("Error setting up signal handler");
@@ -48,6 +50,7 @@ fn main() {
     web_server.destroy();
     dns_server.destroy();
     dhcp_server.destroy();
+    link_server.destroy();
 
     ServerFactory::join();
 }

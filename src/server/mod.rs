@@ -2,6 +2,7 @@ pub mod common;
 pub mod web;
 pub mod dns;
 pub mod dhcp;
+pub mod link;
 use confee::conf::*;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};

@@ -18,7 +18,7 @@ impl Server for Web {
     fn create(conf: &Conf) -> Self {
         let mut web = Web {
             dir: conf.get("web_dir").unwrap(),
-            addr: conf.get("web_addr").unwrap(),
+            addr: conf.get("link_addr").unwrap(),
             port: conf.get("web_port").unwrap(),
             state: server_state!(),
         };
@@ -27,8 +27,6 @@ impl Server for Web {
     }
 
     fn mainloop(&self) {
-        self.log("Ready");
-
         let socket_addr = SocketAddr::new(self.addr, self.port);
         let listener = TcpListener::bind(socket_addr).expect(&format!("{}: Could not bind to address", self.state.prefix));
         listener.set_nonblocking(true).expect(&format!("{}: Failed to set non-blocking", self.state.prefix));
